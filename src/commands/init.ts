@@ -1,7 +1,6 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import chalk from 'chalk';
-import { GooseFlowConfig } from '../types';
 import { ConfigParser } from '../lib/config-parser';
 
 export async function init(): Promise<void> {

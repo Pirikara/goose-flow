@@ -1,4 +1,4 @@
-import { execa, ExecaChildProcess } from 'execa';
+import { execa } from 'execa';
 import * as path from 'path';
 import * as fs from 'fs-extra';
 import chalk from 'chalk';
