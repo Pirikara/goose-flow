@@ -191,7 +191,7 @@ goose-flow run --mode documenter --task "generate API documentation"
 
 ## Requirements
 
-- Node.js 18+
+- Node.js 20+
 - [Goose CLI](https://github.com/block/goose) installed and configured
 - LLM provider access (OpenAI, Claude, etc.)
 
