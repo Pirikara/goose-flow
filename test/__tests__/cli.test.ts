@@ -85,8 +85,9 @@ describe('CLI Integration Tests', () => {
         agents: {
           'test-mode': {
             description: 'Test mode for CLI testing',
-            prompt: 'Test prompt',
-            tools: ['Read', 'Write']
+            roleDefinition: 'Test role for testing',
+            groups: ['read', 'edit'],
+            customInstructions: 'Test instructions'
           }
         }
       };
@@ -99,7 +100,7 @@ describe('CLI Integration Tests', () => {
       expect(stdout).toContain('📋 Available Agent Modes:');
       expect(stdout).toContain('🔸 test-mode');
       expect(stdout).toContain('Test mode for CLI testing');
-      expect(stdout).toContain('Tools: Read, Write');
+      expect(stdout).toContain('Groups: read, edit');
       expect(stdout).toContain('💡 Usage examples:');
     });
 
@@ -124,7 +125,6 @@ describe('CLI Integration Tests', () => {
     it('should show available modes when no mode specified', async () => {
       const { stdout } = await execAsync(`node "${cliPath}" run`);
       
-      expect(stdout).toContain('🚀 Starting goose-flow swarm orchestration');
       expect(stdout).toContain('📋 No modes specified. Available agent modes:');
       expect(stdout).toContain('💡 Usage examples:');
     });
@@ -157,7 +157,7 @@ describe('CLI Integration Tests', () => {
       expect(stdout).toContain('📊 goose-flow Status Report');
       expect(stdout).toContain('🔍 Overall Status');
       expect(stdout).toContain('Total Agents: 0');
-      expect(stdout).toContain('💡 No active workflows detected');
+      expect(stdout).toContain('💡 No active orchestration workflows detected');
     });
   });
 

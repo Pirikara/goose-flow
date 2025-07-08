@@ -28,14 +28,12 @@ describe('init command', () => {
     expect(await fs.pathExists('.goose-flow')).toBe(true);
     expect(await fs.pathExists('.goose-flow/workspace')).toBe(true);
     expect(await fs.pathExists('.goose-flow/logs')).toBe(true);
-    expect(await fs.pathExists('.goose-flow/workspace/agents')).toBe(true);
     expect(await fs.pathExists('.goose-flow/workspace/results')).toBe(true);
 
     // Check configuration files
     expect(await fs.pathExists('goose-flow.config.json')).toBe(true);
 
     // Check initial workspace files
-    expect(await fs.pathExists('.goose-flow/workspace/task-queue.json')).toBe(true);
     expect(await fs.pathExists('.goose-flow/workspace/progress.json')).toBe(true);
 
     // Check .gitignore
@@ -75,9 +73,10 @@ describe('init command', () => {
     // Check structure of a mode
     const orchestrator = config.agents.orchestrator;
     expect(orchestrator).toHaveProperty('description');
-    expect(orchestrator).toHaveProperty('prompt');
-    expect(orchestrator).toHaveProperty('tools');
-    expect(Array.isArray(orchestrator.tools)).toBe(true);
+    expect(orchestrator).toHaveProperty('roleDefinition');
+    expect(orchestrator).toHaveProperty('groups');
+    expect(orchestrator).toHaveProperty('customInstructions');
+    expect(Array.isArray(orchestrator.groups)).toBe(true);
   });
 
   it('should not overwrite existing initialization', async () => {
@@ -105,17 +104,15 @@ describe('init command', () => {
 
     const config = await fs.readJSON('goose-flow.config.json');
     expect(config.agents['orchestrator']).toEqual({
-      description: 'Multi-agent task orchestration and coordination',
-      prompt: expect.stringContaining('AI orchestrator'),
-      tools: expect.arrayContaining(['TodoWrite', 'TodoRead', 'Task', 'Memory', 'Bash'])
+      description: '🪃 General workflow orchestration',
+      roleDefinition: expect.stringContaining('orchestrator'),
+      groups: expect.arrayContaining(['read']),
+      customInstructions: expect.stringContaining('new_task')
     });
   });
 
   it('should initialize empty workspace files', async () => {
     await init();
-
-    const taskQueue = await fs.readJSON('.goose-flow/workspace/task-queue.json');
-    expect(taskQueue).toEqual([]);
 
     const progress = await fs.readJSON('.goose-flow/workspace/progress.json');
     expect(progress).toEqual([]);

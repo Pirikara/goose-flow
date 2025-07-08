@@ -2,7 +2,7 @@
 
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { init, run, status } from './commands';
+import { init, run, status, tools } from './commands';
 
 const program = new Command();
 
@@ -56,7 +56,7 @@ program
         for (const [modeName, modeConfig] of Object.entries(modes)) {
           console.log(chalk.cyan(`🔸 ${modeName}`));
           console.log(chalk.gray(`   ${modeConfig.description}`));
-          console.log(chalk.gray(`   Tools: ${modeConfig.tools.join(', ')}`));
+          console.log(chalk.gray(`   Groups: ${modeConfig.groups.map(g => Array.isArray(g) ? g[0] : g).join(', ')}`));
           console.log('');
         }
         
@@ -82,6 +82,19 @@ program
       await status();
     } catch (error) {
       console.error(chalk.red('❌ Status check failed:'), error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('tools')
+  .description('List available tools and their usage')
+  .option('--mode <mode>', 'Show tools available for specific agent mode')
+  .action(async (options) => {
+    try {
+      await tools(options);
+    } catch (error) {
+      console.error(chalk.red('❌ Tools listing failed:'), error);
       process.exit(1);
     }
   });

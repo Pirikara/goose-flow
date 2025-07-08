@@ -1,14 +1,15 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import chalk from 'chalk';
-import { AgentManager } from '../lib/agent-manager';
+import { TaskOrchestrator } from '../lib/task-orchestrator';
+import { OrchestrationRequestHandler } from '../lib/orchestration-request-handler';
 import { ConfigParser } from '../lib/config-parser';
+import { ToolPermissionManager } from '../lib/tool-permission-manager';
 import { CommandOptions } from '../types';
+import { logger } from '../lib/console-logger';
 
 export async function run(options: CommandOptions): Promise<void> {
   const cwd = process.cwd();
-  
-  console.log(chalk.blue('🚀 Starting goose-flow swarm orchestration...'));
 
   // Initialize config parser
   const configParser = new ConfigParser(cwd);
@@ -36,21 +37,22 @@ export async function run(options: CommandOptions): Promise<void> {
       
       console.log(chalk.yellow('\n💡 Usage examples:'));
       console.log(chalk.gray('   goose-flow run --mode orchestrator --task "coordinate development"'));
-      console.log(chalk.gray('   goose-flow run --mode coder,tester --parallel'));
-      console.log(chalk.gray('   goose-flow run --mode security-orchestrator,static-auditor,vuln-validator,report-writer'));
+      console.log(chalk.gray('   goose-flow run --mode coder --task "implement user authentication"'));
+      console.log(chalk.gray('   goose-flow run --mode security-orchestrator --task "perform security analysis"'));
     } catch (error) {
       console.error(chalk.red('❌ Failed to load modes:'), error);
     }
     return;
   }
 
-  const modes = options.mode.split(',').map(mode => mode.trim());
+  const mode = options.mode.trim();
   
-  // Validate all modes exist
+  // Display orchestration header  
+  logger.orchestrationHeader([mode]);
+  
+  // Validate mode exists
   try {
-    for (const mode of modes) {
-      await configParser.getModeDefinition(mode);
-    }
+    await configParser.getModeDefinition(mode);
   } catch (error) {
     console.error(chalk.red('❌ Invalid mode:'), error);
     console.log(chalk.yellow('💡 Use "goose-flow modes" to see available modes'));
@@ -62,80 +64,78 @@ export async function run(options: CommandOptions): Promise<void> {
   const maxAgents = parseInt(options.maxAgents?.toString() || '4');
   const timeout = parseInt(options.timeout?.toString() || '1800000');
 
-  const agentManager = new AgentManager(workspaceDir, maxAgents, timeout);
-  await agentManager.initialize();
+  const orchestrator = new TaskOrchestrator(workspaceDir, maxAgents, timeout);
+  await orchestrator.initialize();
+
+  // Clean up old progress entries
+  await orchestrator.getProgressTracker().removeStaleEntries();
+
+  // Start the request handler for orchestration communication
+  const requestHandler = new OrchestrationRequestHandler(orchestrator);
+  await requestHandler.start();
 
   try {
     // Clear previous workspace
     await clearWorkspace(workspaceDir);
 
-    console.log(chalk.cyan(`🎯 Running agent modes: ${modes.join(', ')}`));
+    logger.info(`Target directory: ${cwd}`);
     if (options.task) {
-      console.log(chalk.gray(`📝 Task: ${options.task}`));
+      logger.info(`Task description: ${options.task}`);
     }
 
-    if (options.parallel) {
-      // Parallel execution mode
-      console.log(chalk.blue('🔄 Starting all agents in parallel mode...'));
-      
-      const agentPromises = modes.map(async (modeName) => {
-        const agentConfig = await configParser.convertToAgentConfig(modeName, options.task);
-        return agentManager.spawnAgent(agentConfig);
-      });
-
-      await Promise.all(agentPromises);
-    } else {
-      // Sequential execution mode (default)
-      console.log(chalk.blue('🔄 Starting agents in sequential mode...'));
-      
-      for (let i = 0; i < modes.length; i++) {
-        const modeName = modes[i];
-        const agentConfig = await configParser.convertToAgentConfig(modeName, options.task);
-        
-        // Set up next roles chain for sequential execution
-        if (i < modes.length - 1) {
-          agentConfig.nextRoles = [modes[i + 1]];
-        }
-        
-        await agentManager.spawnAgent(agentConfig);
-        
-        // For sequential mode, only start the first agent
-        // The others will be triggered by the completion chain
-        break;
-      }
-    }
+    // Single mode execution - create a root task
+    const instruction = options.task || `Execute tasks in ${mode} mode`;
+    
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _taskId = await orchestrator.createRootTask(mode, instruction, {
+      maxTurns: mode.includes('orchestrator') ? 50 : 20,
+      tools: await getToolsForMode(configParser, mode)
+    });
 
     // Monitor progress
-    console.log(chalk.yellow('📊 Monitoring swarm progress...'));
-    await monitorProgress(agentManager);
+    await monitorProgress(orchestrator);
 
     // Wait for completion
-    console.log(chalk.yellow('⏳ Waiting for all agents to complete...'));
-    await agentManager.waitForCompletion();
+    await orchestrator.waitForCompletion();
 
-    // Display final summary in console
-    await displayFinalSummary(agentManager);
-
-    console.log(chalk.green('✅ Swarm orchestration completed successfully!'));
-    console.log(chalk.cyan('📁 Agent results are available in .goose-flow/workspace/results/'));
+    // Display final summary
+    await displayFinalSummary(orchestrator);
 
   } catch (error) {
-    console.error(chalk.red('❌ Swarm orchestration failed:'), error);
+    logger.error(`Task orchestration failed: ${error instanceof Error ? error.message : String(error)}`);
     
-    // Stop all agents on error
-    await agentManager.stopAllAgents();
+    // Stop all tasks on error
+    await orchestrator.stopAllTasks();
     process.exit(1);
+  } finally {
+    // Stop the request handler
+    await requestHandler.stop();
+    
+    // Cleanup old request files
+    await requestHandler.cleanup();
+  }
+}
+
+async function getToolsForMode(configParser: ConfigParser, mode: string): Promise<string[]> {
+  try {
+    const modes = await configParser.getAllModes();
+    const toolPermissionManager = new ToolPermissionManager(modes);
+    
+    return toolPermissionManager.getAvailableTools(mode);
+  } catch (error) {
+    console.warn(chalk.yellow(`⚠️  Failed to get tools for mode ${mode}, using defaults`));
+    return ['attempt_completion'];
   }
 }
 
 async function clearWorkspace(workspaceDir: string): Promise<void> {
   try {
-    // Clear agents directory
-    const agentsDir = path.join(workspaceDir, 'agents');
-    if (await fs.pathExists(agentsDir)) {
-      await fs.remove(agentsDir);
+    // Clear tasks directory
+    const tasksDir = path.join(workspaceDir, 'tasks');
+    if (await fs.pathExists(tasksDir)) {
+      await fs.remove(tasksDir);
     }
-    await fs.ensureDir(agentsDir);
+    await fs.ensureDir(tasksDir);
 
     // Clear results directory
     const resultsDir = path.join(workspaceDir, 'results');
@@ -144,57 +144,34 @@ async function clearWorkspace(workspaceDir: string): Promise<void> {
     }
     await fs.ensureDir(resultsDir);
 
-    // Reset task queue and progress
-    await fs.writeJSON(path.join(workspaceDir, 'task-queue.json'), [], { spaces: 2 });
+    // Reset progress  
     await fs.writeJSON(path.join(workspaceDir, 'progress.json'), [], { spaces: 2 });
+    
+    // Clean up any old request/response files
+    try {
+      const tmpFiles = await fs.readdir('/tmp');
+      const oldFiles = tmpFiles.filter(file => file.startsWith('goose-flow-'));
+      for (const file of oldFiles) {
+        await fs.remove(path.join('/tmp', file));
+      }
+    } catch (error) {
+      // Ignore cleanup errors
+    }
 
-    console.log(chalk.gray('🧹 Workspace cleared'));
+    logger.debug('Workspace cleared');
   } catch (error) {
-    console.warn(chalk.yellow('⚠️  Failed to clear workspace:'), error);
+    logger.warn(`Failed to clear workspace: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
-async function monitorProgress(agentManager: AgentManager): Promise<void> {
-  const progressTracker = agentManager.getProgressTracker();
-  
-  const printProgress = () => {
-    const progress = progressTracker.getAllProgress();
-    
-    if (progress.length === 0) {
-      console.log(chalk.gray('⏳ No agents running...'));
-      return;
-    }
-
-    console.log(chalk.blue('📊 Swarm Status:'));
-    progress.forEach(entry => {
-      const statusColor = entry.status === 'completed' ? 'green' : 
-                         entry.status === 'failed' ? 'red' : 
-                         entry.status === 'running' ? 'yellow' : 'gray';
-      
-      console.log(chalk[statusColor](
-        `  🤖 ${entry.agentName}: ${entry.status} (${entry.progress}%)`
-      ));
-      
-      if (entry.currentTask) {
-        console.log(chalk.gray(`     Task: ${entry.currentTask}`));
-      }
-    });
-    
-    const overallProgress = progressTracker.getOverallProgress();
-    console.log(chalk.cyan(`🌊 Swarm Progress: ${overallProgress.toFixed(1)}%`));
-    console.log('');
-  };
-
-  // Print initial progress
-  printProgress();
-
-  // Set up periodic progress updates
-  const interval = setInterval(printProgress, 10000); // Every 10 seconds
-
-  // Stop monitoring when all completed
+async function monitorProgress(orchestrator: TaskOrchestrator): Promise<void> {
+  // Simple monitoring - the logger handles real-time progress display
   const checkCompletion = () => {
-    if (progressTracker.isAllCompleted()) {
-      clearInterval(interval);
+    const activeTasks = orchestrator.getAllTasks().filter(task => 
+      task.status === 'running' || task.status === 'pending' || task.status === 'paused'
+    );
+    
+    if (activeTasks.length === 0) {
       return;
     }
     setTimeout(checkCompletion, 1000);
@@ -203,33 +180,38 @@ async function monitorProgress(agentManager: AgentManager): Promise<void> {
   checkCompletion();
 }
 
-async function displayFinalSummary(agentManager: AgentManager): Promise<void> {
+
+async function displayFinalSummary(orchestrator: TaskOrchestrator): Promise<void> {
   try {
-    const progressTracker = agentManager.getProgressTracker();
-    const allProgress = progressTracker.getAllProgress();
+    const tasks = orchestrator.getAllTasks();
     
-    if (allProgress.length === 0) {
+    if (tasks.length === 0) {
       return;
     }
 
-    console.log(chalk.blue('📊 Final Summary:'));
+    // Count by status
+    const completed = tasks.filter(t => t.status === 'completed').length;
+    const failed = tasks.filter(t => t.status === 'failed').length;
+    const total = tasks.length;
     
-    for (const entry of allProgress) {
-      const statusColor = entry.status === 'completed' ? 'green' : 
-                         entry.status === 'failed' ? 'red' : 'yellow';
-      
-      console.log(chalk[statusColor](
-        `  🤖 ${entry.agentName}: ${entry.status} (${entry.progress}%)`
-      ));
+    // Display orchestration summary
+    logger.orchestrationSummary(completed, failed, total);
+    
+    // Show results for completed tasks
+    const completedTasks = tasks.filter(t => t.status === 'completed' && t.result);
+    if (completedTasks.length > 0) {
+      logger.separator('Task Results');
+      completedTasks.forEach(task => {
+        logger.info(`✅ ${task.mode}: ${task.result}`);
+      });
+      logger.info('');
     }
+
+    // Show location of detailed results
+    logger.info('📁 Detailed results available in: .goose-flow/workspace/tasks/');
     
-    const completed = progressTracker.getCompletedAgents().length;
-    const failed = progressTracker.getFailedAgents().length;
-    const total = allProgress.length;
-    
-    console.log(chalk.cyan(`🎯 Total: ${total} | Completed: ${completed} | Failed: ${failed}`));
   } catch (error) {
-    console.warn(chalk.yellow('⚠️  Failed to display summary:'), error);
+    logger.warn(`Failed to display summary: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 

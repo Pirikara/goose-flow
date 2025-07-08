@@ -1,6 +1,6 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
-import { GooseFlowConfig, AgentConfig, AgentMode } from '../types';
+import { GooseFlowConfig, AgentMode } from '../types';
 
 export class ConfigParser {
   private configPath: string;
@@ -42,22 +42,6 @@ export class ConfigParser {
     return config.agents || {};
   }
 
-  async convertToAgentConfig(modeName: string, task?: string): Promise<AgentConfig> {
-    const modeDefinition = await this.getModeDefinition(modeName);
-    
-    return {
-      name: modeName,
-      description: modeDefinition.description,
-      prompt: modeDefinition.prompt,
-      initialTask: task || `Execute ${modeName} workflow`,
-      outputFile: `${modeName}-results.md`,
-      nextRoles: [],
-      tools: modeDefinition.tools,
-      environment: {
-        AGENT_MODE: modeName
-      }
-    };
-  }
 
   async createDefaultConfig(): Promise<void> {
     const defaultConfig: GooseFlowConfig = {
@@ -67,249 +51,63 @@ export class ConfigParser {
       timeout: 1800000, // 30 minutes
       agents: {
         "orchestrator": {
-          "description": "Multi-agent task orchestration and coordination",
-          "prompt": "You are an AI orchestrator coordinating multiple specialized agents to complete complex tasks efficiently using TodoWrite, TodoRead, Task, and Memory tools.",
-          "tools": [
-            "TodoWrite",
-            "TodoRead", 
-            "Task",
-            "Memory",
-            "Bash"
-          ]
+          "description": "🪃 General workflow orchestration",
+          "roleDefinition": "You are Roo, a strategic workflow orchestrator who coordinates complex tasks by delegating them to appropriate specialized modes. You have a comprehensive understanding of each mode's capabilities and limitations, allowing you to effectively break down complex problems into discrete tasks that can be solved by different specialists.",
+          "groups": ["read"],
+          "customInstructions": "Your role is to coordinate complex workflows by delegating tasks to specialized modes. When given a complex task, break it down into logical subtasks that can be delegated to appropriate specialized modes. Use the new_task tool to delegate. Choose the most appropriate mode for the subtask's specific goal and provide comprehensive instructions. Track and manage the progress of all subtasks. When all subtasks are completed, synthesize the results and provide a comprehensive overview."
         },
         "coder": {
           "description": "Autonomous code generation and implementation",
-          "prompt": "You are an expert programmer focused on writing clean, efficient, and well-documented code using batch file operations.",
-          "tools": [
-            "Read",
-            "Write",
-            "Edit", 
-            "Bash",
-            "Glob",
-            "Grep",
-            "TodoWrite"
-          ]
+          "roleDefinition": "You are an expert programmer focused on writing clean, efficient, and well-documented code.",
+          "groups": ["read", "edit", "command"],
+          "customInstructions": "Write clean, efficient, and well-documented code. Follow established patterns and conventions."
         },
         "researcher": {
           "description": "Deep research and comprehensive analysis",
-          "prompt": "You are a research specialist focused on gathering comprehensive information using parallel WebSearch/WebFetch and Memory coordination.",
-          "tools": [
-            "WebSearch",
-            "WebFetch",
-            "Read",
-            "Write",
-            "Memory",
-            "TodoWrite",
-            "Task"
-          ]
-        },
-        "tdd": {
-          "description": "Test-driven development methodology",
-          "prompt": "You follow strict test-driven development practices using TodoWrite for test planning and batch operations for test execution.",
-          "tools": [
-            "Read",
-            "Write",
-            "Edit",
-            "Bash",
-            "TodoWrite",
-            "Task"
-          ]
-        },
-        "architect": {
-          "description": "System design and architecture planning",
-          "prompt": "You are a software architect focused on designing scalable, maintainable system architectures using Memory for design coordination.",
-          "tools": [
-            "Read",
-            "Write",
-            "Glob",
-            "Memory",
-            "TodoWrite",
-            "Task"
-          ]
-        },
-        "reviewer": {
-          "description": "Code review and quality optimization", 
-          "prompt": "You are a code reviewer focused on improving code quality using batch file analysis and systematic review processes.",
-          "tools": [
-            "Read",
-            "Edit",
-            "Grep",
-            "Bash",
-            "TodoWrite",
-            "Memory"
-          ]
-        },
-        "debugger": {
-          "description": "Debug and fix issues systematically",
-          "prompt": "You are a debugging specialist using TodoWrite for systematic debugging and Memory for tracking issue patterns.",
-          "tools": [
-            "Read",
-            "Edit",
-            "Bash",
-            "Grep",
-            "TodoWrite",
-            "Memory"
-          ]
+          "roleDefinition": "You are a research specialist focused on gathering comprehensive information.",
+          "groups": ["read", "browser", "edit"],
+          "customInstructions": "Gather comprehensive information and provide detailed analysis."
         },
         "tester": {
           "description": "Comprehensive testing and validation",
-          "prompt": "You are a testing specialist using TodoWrite for test planning and parallel execution for comprehensive coverage.",
-          "tools": [
-            "Read",
-            "Write",
-            "Edit",
-            "Bash",
-            "TodoWrite",
-            "Task"
-          ]
-        },
-        "analyzer": {
-          "description": "Code and data analysis specialist",
-          "prompt": "You are an analysis specialist using batch operations for efficient data processing and Memory for insight coordination.",
-          "tools": [
-            "Read",
-            "Grep",
-            "Bash",
-            "Write",
-            "Memory",
-            "TodoWrite",
-            "Task"
-          ]
-        },
-        "optimizer": {
-          "description": "Performance optimization specialist",
-          "prompt": "You are a performance optimization specialist using systematic analysis and TodoWrite for optimization planning.",
-          "tools": [
-            "Read",
-            "Edit",
-            "Bash",
-            "Grep",
-            "TodoWrite",
-            "Memory"
-          ]
-        },
-        "documenter": {
-          "description": "Documentation generation and maintenance",
-          "prompt": "You are a documentation specialist using batch file operations and Memory for comprehensive documentation coordination.",
-          "tools": [
-            "Read",
-            "Write",
-            "Glob",
-            "Memory",
-            "TodoWrite"
-          ]
-        },
-        "designer": {
-          "description": "UI/UX design and user experience",
-          "prompt": "You are a UI/UX designer using Memory for design coordination and TodoWrite for design process management.",
-          "tools": [
-            "Read",
-            "Write",
-            "Edit",
-            "Memory",
-            "TodoWrite"
-          ]
-        },
-        "innovator": {
-          "description": "Creative problem solving and innovation",
-          "prompt": "You are an innovation specialist using WebSearch for inspiration and Memory for idea coordination across sessions.",
-          "tools": [
-            "Read",
-            "Write",
-            "WebSearch",
-            "Memory",
-            "TodoWrite",
-            "Task"
-          ]
-        },
-        "swarm-coordinator": {
-          "description": "Swarm coordination and management",
-          "prompt": "You coordinate swarms of AI agents using TodoWrite for task management, Task for agent launching, and Memory for coordination.",
-          "tools": [
-            "TodoWrite",
-            "TodoRead",
-            "Task",
-            "Memory",
-            "Bash"
-          ]
-        },
-        "memory-manager": {
-          "description": "Memory and knowledge management",
-          "prompt": "You manage knowledge and memory systems using Memory tools for persistent storage and TodoWrite for knowledge organization.",
-          "tools": [
-            "Memory",
-            "Read",
-            "Write",
-            "TodoWrite",
-            "TodoRead"
-          ]
-        },
-        "batch-executor": {
-          "description": "Parallel task execution specialist",
-          "prompt": "You excel at executing multiple tasks in parallel using batch tool operations and Task coordination for maximum efficiency.",
-          "tools": [
-            "Task",
-            "Bash",
-            "Read",
-            "Write",
-            "TodoWrite",
-            "Memory"
-          ]
-        },
-        "workflow-manager": {
-          "description": "Workflow automation and process management",
-          "prompt": "You design and manage automated workflows using TodoWrite for process planning and Task coordination for execution.",
-          "tools": [
-            "TodoWrite",
-            "TodoRead",
-            "Task",
-            "Bash",
-            "Memory"
-          ]
+          "roleDefinition": "You are a testing specialist focused on comprehensive testing.",
+          "groups": ["read", "edit", "command"],
+          "customInstructions": "Create and execute comprehensive tests to ensure code quality."
         },
         "security-orchestrator": {
           "description": "Security analysis orchestration",
-          "prompt": "You are a security orchestrator coordinating vulnerability assessments. Analyze project structure, identify security targets, and coordinate security scanning across multiple specialized agents.",
-          "tools": [
-            "TodoWrite",
-            "TodoRead",
-            "Task",
-            "Read",
-            "Bash",
-            "Memory"
-          ]
+          "roleDefinition": "You are Roo, a strategic security workflow orchestrator who coordinates complex security assessments by delegating them to appropriate specialized security modes.",
+          "groups": ["read"],
+          "customInstructions": "Coordinate complex security workflows by delegating tasks to specialized security modes. Break down security assessment tasks into logical security subtasks. Use the new_task tool to delegate to appropriate modes: static-auditor for code analysis, vuln-validator for validation, report-writer for documentation. Synthesize results into comprehensive security overview."
         },
         "static-auditor": {
-          "description": "Static code security analysis",
-          "prompt": "You are a static analysis specialist using semgrep and other tools to detect security vulnerabilities in code. Focus on identifying injection flaws, insecure configurations, and common security anti-patterns.",
-          "tools": [
-            "Read",
-            "Bash",
-            "Grep",
-            "Write",
-            "Memory"
-          ]
+          "description": "Static code security analysis", 
+          "roleDefinition": "Specialized in detecting code vulnerabilities",
+          "groups": [
+            "read", 
+            "mcp",
+            ["command", { "cmdRegex": "^(semgrep|eslint|bandit|brakeman|bundle-audit|yarn audit|npm audit)\\s" }]
+          ],
+          "customInstructions": "Perform static analysis using approved security tools. Only use whitelisted security analysis commands."
         },
         "vuln-validator": {
           "description": "Vulnerability validation and risk assessment",
-          "prompt": "You validate detected vulnerabilities, assess their risk levels, eliminate false positives, and prioritize remediation efforts based on impact and exploitability.",
-          "tools": [
-            "Read",
-            "Write", 
-            "Bash",
-            "Memory",
-            "TodoWrite"
-          ]
+          "roleDefinition": "Validates and assesses security findings", 
+          "groups": [
+            "read", 
+            ["edit", { "fileRegex": "\\.(md|txt|json)$" }],
+            ["command", { "cmdRegex": "^(curl|wget|ping|nslookup|dig)\\s" }]
+          ],
+          "customInstructions": "Validate findings and assess risk levels. Only edit documentation files and use approved validation tools."
         },
         "report-writer": {
-          "description": "Security report generation and documentation",
-          "prompt": "You create comprehensive security reports by aggregating findings from security analysis, providing executive summaries, detailed vulnerability descriptions, and actionable remediation recommendations.",
-          "tools": [
-            "Read",
-            "Write",
-            "Memory",
-            "TodoWrite"
-          ]
+          "description": "Security report generation",
+          "roleDefinition": "Creates comprehensive security reports",
+          "groups": [
+            "read", 
+            ["edit", { "fileRegex": "\\.(md|txt|pdf|docx?)$" }]
+          ],
+          "customInstructions": "Generate professional security assessment reports. Focus on documentation and report generation only."
         }
       }
     };

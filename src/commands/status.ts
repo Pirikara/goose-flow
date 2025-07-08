@@ -2,7 +2,6 @@ import * as fs from 'fs-extra';
 import * as path from 'path';
 import chalk from 'chalk';
 import { ProgressTracker } from '../lib/progress-tracker';
-import { TaskQueue } from '../lib/task-queue';
 
 export async function status(): Promise<void> {
   const cwd = process.cwd();
@@ -22,7 +21,7 @@ export async function status(): Promise<void> {
   try {
     // Load progress tracker
     const progressTracker = new ProgressTracker(path.join(workspaceDir, 'progress.json'));
-    const taskQueue = new TaskQueue(path.join(workspaceDir, 'task-queue.json'));
+    await progressTracker.initialize();
 
     // Display overall status
     const allProgress = progressTracker.getAllProgress();
@@ -86,57 +85,36 @@ export async function status(): Promise<void> {
       });
     }
 
-    // Display task queue status
-    const allTasks = taskQueue.getAllTasks();
-    const pendingTasks = taskQueue.getPendingTasks();
-    const inProgressTasks = taskQueue.getInProgressTasks();
-    const completedTasks = taskQueue.getCompletedTasks();
-    const failedTasks = taskQueue.getFailedTasks();
+    // Display task orchestration status
+    const tasksDir = path.join(workspaceDir, 'tasks');
+    if (await fs.pathExists(tasksDir)) {
+      const taskDirectories = await fs.readdir(tasksDir);
 
-    if (allTasks.length > 0) {
-      console.log(chalk.cyan('📋 Task Queue Status'));
+      console.log(chalk.cyan('🎯 Task Orchestration Status'));
       console.log(chalk.gray('─'.repeat(30)));
-      console.log(`Total Tasks: ${allTasks.length}`);
-      console.log(`Pending: ${chalk.yellow(pendingTasks.length)}`);
-      console.log(`In Progress: ${chalk.blue(inProgressTasks.length)}`);
-      console.log(`Completed: ${chalk.green(completedTasks.length)}`);
-      console.log(`Failed: ${chalk.red(failedTasks.length)}`);
-      console.log('');
-
-      // Display pending tasks
-      if (pendingTasks.length > 0) {
-        console.log(chalk.yellow('⏳ Pending Tasks'));
+      console.log(`Active Task Sessions: ${taskDirectories.length}`);
+      
+      if (taskDirectories.length > 0) {
+        console.log(chalk.blue('📋 Recent Task Sessions:'));
         console.log(chalk.gray('─'.repeat(30)));
         
-        pendingTasks.slice(0, 5).forEach(task => {
-          console.log(chalk.yellow(`  ${task.id}`));
-          console.log(chalk.gray(`    Type: ${task.type}`));
-          console.log(chalk.gray(`    Role: ${task.role}`));
-          console.log(chalk.gray(`    Created: ${task.createdAt}`));
-          console.log('');
-        });
+        for (const taskDir of taskDirectories.slice(0, 5)) {
+          const taskPath = path.join(tasksDir, taskDir);
+          try {
+            const stat = await fs.stat(taskPath);
+            console.log(chalk.blue(`  ${taskDir}`));
+            console.log(chalk.gray(`    Created: ${stat.birthtime}`));
+            console.log(chalk.gray(`    Modified: ${stat.mtime}`));
+            console.log('');
+          } catch (error) {
+            // Skip directories that can't be read
+          }
+        }
 
-        if (pendingTasks.length > 5) {
-          console.log(chalk.gray(`  ... and ${pendingTasks.length - 5} more`));
+        if (taskDirectories.length > 5) {
+          console.log(chalk.gray(`  ... and ${taskDirectories.length - 5} more`));
           console.log('');
         }
-      }
-
-      // Display in-progress tasks
-      if (inProgressTasks.length > 0) {
-        console.log(chalk.blue('🔄 In Progress Tasks'));
-        console.log(chalk.gray('─'.repeat(30)));
-        
-        inProgressTasks.forEach(task => {
-          console.log(chalk.blue(`  ${task.id}`));
-          console.log(chalk.gray(`    Type: ${task.type}`));
-          console.log(chalk.gray(`    Role: ${task.role}`));
-          if (task.assignedAgent) {
-            console.log(chalk.gray(`    Assigned to: ${task.assignedAgent}`));
-          }
-          console.log(chalk.gray(`    Started: ${task.updatedAt}`));
-          console.log('');
-        });
       }
     }
 
@@ -167,14 +145,16 @@ export async function status(): Promise<void> {
 
     console.log('');
 
-    // Display recommendations
-    if (activeAgents.length === 0 && pendingTasks.length === 0) {
-      console.log(chalk.green('💡 No active workflows detected'));
+    // Display recommendations  
+    const hasTasks = await fs.pathExists(tasksDir) && (await fs.readdir(tasksDir)).length > 0;
+    
+    if (activeAgents.length === 0 && !hasTasks) {
+      console.log(chalk.green('💡 No active orchestration workflows detected'));
       console.log(chalk.yellow('   Start a new workflow with:'));
-      console.log(chalk.gray('   - goose-flow security-scan .'));
-      console.log(chalk.gray('   - goose-flow run --mode orchestrator,static-auditor'));
+      console.log(chalk.gray('   - goose-flow run --mode orchestrator --task "your task"'));
+      console.log(chalk.gray('   - goose-flow run --mode coder --task "create hello world"'));
     } else if (failedAgents.length > 0) {
-      console.log(chalk.red('⚠️  Some agents have failed'));
+      console.log(chalk.red('⚠️  Some tasks have failed'));
       console.log(chalk.yellow('   Check logs for details and consider restarting'));
     }
 

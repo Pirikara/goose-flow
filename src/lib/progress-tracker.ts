@@ -86,6 +86,25 @@ export class ProgressTracker {
     await this.saveProgress();
   }
 
+  async removeStaleEntries(maxAge: number = 3600000): Promise<void> {
+    const now = Date.now();
+    const entries = Array.from(this.progress.values());
+    
+    for (const entry of entries) {
+      const lastUpdateTime = entry.lastUpdate instanceof Date 
+        ? entry.lastUpdate.getTime() 
+        : new Date(entry.lastUpdate).getTime();
+      const age = now - lastUpdateTime;
+      if (age > maxAge) {
+        this.progress.delete(entry.agentId);
+      }
+    }
+    
+    if (entries.length !== this.progress.size) {
+      await this.saveProgress();
+    }
+  }
+
   private async loadProgress(): Promise<void> {
     try {
       if (await fs.pathExists(this.filePath)) {

@@ -83,9 +83,9 @@ describe('ConfigParser', () => {
     it('should return agent mode definition', async () => {
       const orchestratorMode = await configParser.getModeDefinition('orchestrator');
       
-      expect(orchestratorMode.description).toBe('Multi-agent task orchestration and coordination');
-      expect(orchestratorMode.prompt).toContain('AI orchestrator');
-      expect(orchestratorMode.tools).toContain('TodoWrite');
+      expect(orchestratorMode.description).toBe('🪃 General workflow orchestration');
+      expect(orchestratorMode.roleDefinition).toContain('orchestrator');
+      expect(orchestratorMode.groups).toContain('read');
     });
 
     it('should throw error for non-existent mode', async () => {
@@ -107,7 +107,7 @@ describe('ConfigParser', () => {
       expect(Object.keys(modes)).toContain('researcher');
       expect(Object.keys(modes)).toContain('security-orchestrator');
       
-      expect(modes.orchestrator.description).toBe('Multi-agent task orchestration and coordination');
+      expect(modes.orchestrator.description).toBe('🪃 General workflow orchestration');
     });
 
     it('should return empty object if no agents defined', async () => {
@@ -129,36 +129,6 @@ describe('ConfigParser', () => {
     });
   });
 
-  describe('convertToAgentConfig', () => {
-    beforeEach(async () => {
-      await configParser.createDefaultConfig();
-    });
-
-    it('should convert mode to agent config', async () => {
-      const agentConfig = await configParser.convertToAgentConfig('orchestrator', 'test task');
-      
-      expect(agentConfig.name).toBe('orchestrator');
-      expect(agentConfig.description).toBe('Multi-agent task orchestration and coordination');
-      expect(agentConfig.initialTask).toBe('test task');
-      expect(agentConfig.outputFile).toBe('orchestrator-results.md');
-      expect(agentConfig.nextRoles).toEqual([]);
-      expect(agentConfig.tools).toContain('TodoWrite');
-      expect(agentConfig.environment).toEqual({
-        AGENT_MODE: 'orchestrator'
-      });
-    });
-
-    it('should use default task if none provided', async () => {
-      const agentConfig = await configParser.convertToAgentConfig('coder');
-      
-      expect(agentConfig.initialTask).toBe('Execute coder workflow');
-    });
-
-    it('should throw error for non-existent mode', async () => {
-      await expect(configParser.convertToAgentConfig('non-existent'))
-        .rejects.toThrow("Agent mode 'non-existent' not found in configuration");
-    });
-  });
 
   describe('getConfigPath', () => {
     it('should return correct config path', () => {

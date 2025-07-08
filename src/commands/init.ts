@@ -20,7 +20,6 @@ export async function init(): Promise<void> {
   // Create directory structure  
   await fs.ensureDir(path.join(gooseFlowDir, 'workspace'));
   await fs.ensureDir(path.join(gooseFlowDir, 'logs'));
-  await fs.ensureDir(path.join(gooseFlowDir, 'workspace', 'agents'));
   await fs.ensureDir(path.join(gooseFlowDir, 'workspace', 'results'));
 
   // Create main configuration file with agents
@@ -28,7 +27,6 @@ export async function init(): Promise<void> {
 
 
   // Create initial workspace files
-  await fs.writeJSON(path.join(gooseFlowDir, 'workspace', 'task-queue.json'), [], { spaces: 2 });
   await fs.writeJSON(path.join(gooseFlowDir, 'workspace', 'progress.json'), [], { spaces: 2 });
 
   // Configuration file created with default agents
@@ -49,6 +47,7 @@ export async function init(): Promise<void> {
   console.log(chalk.cyan('📁 Created directories:'));
   console.log(chalk.gray('  .goose-flow/'));
   console.log(chalk.gray('  .goose-flow/workspace/'));
+  console.log(chalk.gray('  .goose-flow/workspace/results/'));
   console.log(chalk.gray('  .goose-flow/logs/'));
   console.log(chalk.cyan('📄 Created configuration:'));
   console.log(chalk.gray('  goose-flow.config.json (unified configuration with agent definitions)'));
@@ -66,5 +65,5 @@ export async function init(): Promise<void> {
   console.log(chalk.gray('  1. Review and customize goose-flow.config.json file'));
   console.log(chalk.gray('  2. Run: goose-flow modes (to see all available modes)'));
   console.log(chalk.gray('  3. Run: goose-flow run --mode orchestrator --task "your task"'));
-  console.log(chalk.gray('  4. Run: goose-flow run --mode coder,tester --parallel --task "your task"'));
+  console.log(chalk.gray('  4. Run: goose-flow run --mode coder,tester --task "your task"'));
 }
