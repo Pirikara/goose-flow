@@ -34,9 +34,9 @@ This is a TypeScript Node.js CLI tool called **goose-flow** that acts as an **MC
 ### Essential Components
 
 **CLI Interface (`src/cli/index.ts`)**
-- Simple CLI with 2 commands: `mcp`, `status`
+- Simple CLI with 3 commands: `mcp`, `status`, `orchestrate`
 - Commander.js-based command parsing
-- Status reporting functionality
+- Status reporting and orchestrator convenience functionality
 
 **Type System (`src/types/index.ts`)**
 - TaskRequest, TaskResult, and GooseProcess interfaces
@@ -60,6 +60,10 @@ This is a TypeScript Node.js CLI tool called **goose-flow** that acts as an **MC
 **`goose-flow status`**
 - Shows current MCP server status and configuration
 - Displays version and available tools
+
+**`goose-flow orchestrate <task>`**
+- Convenience command to run goose with orchestrator prompt
+- Automatically handles prompt loading and goose execution
 
 
 ## Development Workflow
@@ -164,4 +168,13 @@ Add the MCP server to your Goose configuration:
 4. Command: `npx goose-flow mcp`
 5. Working Directory: your project directory
 
-The MCP server will provide task delegation capabilities to Goose through the `task` and `progress` tools.
+### Usage Pattern
+
+Two-terminal workflow:
+- Terminal 1: `goose-flow mcp` (keep running)
+- Terminal 2: `goose-flow orchestrate "your task"`
+
+Alternative (manual):
+- Terminal 2: `goose run --system "$(cat src/prompts/orchestrator.md)" --text "your task"`
+
+The MCP server provides task delegation capabilities to Goose through the `task` and `progress` tools.

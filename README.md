@@ -8,11 +8,11 @@ goose-flow is a **Model Context Protocol (MCP) server** that extends Goose with 
 
 ```bash
 # Traditional single-agent approach
-goose session start
+goose run --text "Create a simple calculator"
 
 # With goose-flow MCP extension
-goose session start --system-prompt "$(cat src/prompts/orchestrator.md)"
-# Now Goose can use the 'task' tool to delegate subtasks
+goose-flow orchestrate "Create a simple calculator"
+# Now Goose can automatically delegate subtasks to specialized agents
 ```
 
 ## Key Features
@@ -52,17 +52,27 @@ goose configure
 # Working Directory: /path/to/your/project
 ```
 
-### 2. Start Orchestrating
+### 2. Two-Terminal Workflow
 
-Use Goose with the orchestrator prompt to enable task delegation:
-
+**Terminal 1 - Start MCP Server:**
 ```bash
-goose session start --system-prompt "$(cat src/prompts/orchestrator.md)"
+goose-flow mcp
+# Keep this running
 ```
 
-### 3. Delegate Tasks
+**Terminal 2 - Run Orchestrator:**
+```bash
+goose-flow orchestrate "Create a simple calculator with basic operations"
+```
 
-Within your Goose session, use the `task` tool to delegate subtasks:
+### Alternative: Manual Approach
+
+For advanced users, you can also run goose directly:
+```bash
+goose run --system "$(cat src/prompts/orchestrator.md)" --text "your task"
+```
+
+The orchestrator will automatically use the `task` tool to delegate subtasks:
 
 ```json
 {
@@ -82,6 +92,7 @@ Within your Goose session, use the `task` tool to delegate subtasks:
 |---------|-------------|
 | `goose-flow mcp` | Start MCP server for Goose integration |
 | `goose-flow status` | Show current MCP server status |
+| `goose-flow orchestrate <task>` | Run goose with orchestrator prompt (convenience command) |
 
 ## MCP Tools
 
@@ -135,29 +146,37 @@ Choose the appropriate mode for each subtask:
 
 ### Simple Task Delegation
 
-```
-User: "Create a Todo application"
+```bash
+# Start MCP server (Terminal 1)
+goose-flow mcp
 
-Orchestrator:
-1. Uses progress tool to create plan
-2. Delegates UI design: task(mode="architect", prompt="Design Todo app UI")
-3. Delegates implementation: task(mode="coder", prompt="Implement Todo app based on design")
-4. Delegates testing: task(mode="tester", prompt="Test Todo app functionality")
-5. Reports completion with integrated results
+# Run orchestrator (Terminal 2)
+goose-flow orchestrate "Create a Todo application"
 ```
+
+The orchestrator will automatically:
+1. Use progress tool to create plan
+2. Delegate UI design: task(mode="architect", prompt="Design Todo app UI")
+3. Delegate implementation: task(mode="coder", prompt="Implement Todo app based on design")
+4. Delegate testing: task(mode="tester", prompt="Test Todo app functionality")
+5. Report completion with integrated results
 
 ### Complex Multi-Phase Project
 
-```
-User: "Build a REST API with authentication"
+```bash
+# Start MCP server (Terminal 1)
+goose-flow mcp
 
-Orchestrator:
+# Run orchestrator (Terminal 2)
+goose-flow orchestrate "Build a REST API with authentication"
+```
+
+The orchestrator will automatically:
 1. Research phase: task(mode="researcher", prompt="Research REST API best practices")
 2. Design phase: task(mode="architect", prompt="Design API architecture with auth")
 3. Implementation: task(mode="coder", prompt="Implement API endpoints and auth")
 4. Testing: task(mode="tester", prompt="Create comprehensive API tests")
 5. Review: task(mode="reviewer", prompt="Review code quality and security")
-```
 
 ## Configuration
 
