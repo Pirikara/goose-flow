@@ -137,11 +137,14 @@ npm run test:coverage
 npm run build
 npm run link-dev
 
+# Configure goose extension (one-time setup)
+goose configure
+
+# Test orchestrator
+goose-flow orchestrate "test task"
+
 # Check status
 goose-flow status
-
-# Start MCP server
-goose-flow mcp
 ```
 
 ### CI/CD
@@ -170,11 +173,10 @@ Add the MCP server to your Goose configuration:
 
 ### Usage Pattern
 
-Two-terminal workflow:
-- Terminal 1: `goose-flow mcp` (keep running)
-- Terminal 2: `goose-flow orchestrate "your task"`
+Once configured as an extension, goose-flow runs automatically when goose starts:
+- `goose-flow orchestrate "your task"`
+- `goose run --system "$(cat src/prompts/orchestrator.md)" --text "your task"`
 
-Alternative (manual):
-- Terminal 2: `goose run --system "$(cat src/prompts/orchestrator.md)" --text "your task"`
+No separate MCP server startup required - the extension handles this automatically.
 
 The MCP server provides task delegation capabilities to Goose through the `task` and `progress` tools.

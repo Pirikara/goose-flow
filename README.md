@@ -38,11 +38,21 @@ npm run build
 npm link  # Link globally for development
 ```
 
-## Usage
+## Setup & Usage
 
-### 1. Configure Goose
+### 1. Install & Build
 
-Add the MCP server to your Goose configuration:
+```bash
+git clone <repository-url>
+cd goose-flow
+npm install
+npm run build
+npm link  # Make goose-flow available globally
+```
+
+### 2. Configure Goose Extension
+
+Add goose-flow as an extension to your goose configuration:
 
 ```bash
 goose configure
@@ -52,24 +62,32 @@ goose configure
 # Working Directory: /path/to/your/project
 ```
 
-### 2. Two-Terminal Workflow
+This adds goose-flow to your `~/.config/goose/config.yaml`:
 
-**Terminal 1 - Start MCP Server:**
-```bash
-goose-flow mcp
-# Keep this running
+```yaml
+extensions:
+  goose-flow:
+    args:
+    - goose-flow
+    - mcp
+    cmd: npx
+    description: Task orchestration extension for hierarchical agent delegation
+    enabled: true
+    name: goose-flow
+    timeout: 600
+    type: stdio
 ```
 
-**Terminal 2 - Run Orchestrator:**
+### 3. Use goose-flow
+
+Once configured, the MCP server starts automatically when goose runs. Simply use:
+
 ```bash
+# Option 1: Convenience command
 goose-flow orchestrate "Create a simple calculator with basic operations"
-```
 
-### Alternative: Manual Approach
-
-For advanced users, you can also run goose directly:
-```bash
-goose run --system "$(cat src/prompts/orchestrator.md)" --text "your task"
+# Option 2: Direct goose command
+goose run --system "$(cat src/prompts/orchestrator.md)" --text "Create a simple calculator"
 ```
 
 The orchestrator will automatically use the `task` tool to delegate subtasks:
@@ -147,10 +165,6 @@ Choose the appropriate mode for each subtask:
 ### Simple Task Delegation
 
 ```bash
-# Start MCP server (Terminal 1)
-goose-flow mcp
-
-# Run orchestrator (Terminal 2)
 goose-flow orchestrate "Create a Todo application"
 ```
 
@@ -164,10 +178,6 @@ The orchestrator will automatically:
 ### Complex Multi-Phase Project
 
 ```bash
-# Start MCP server (Terminal 1)
-goose-flow mcp
-
-# Run orchestrator (Terminal 2)
 goose-flow orchestrate "Build a REST API with authentication"
 ```
 
@@ -183,28 +193,33 @@ The orchestrator will automatically:
 ### Project Structure
 
 ```
-project-root/
-└── src/
-    └── prompts/
-        └── orchestrator.md   # Orchestrator prompt template
+goose-flow/
+├── src/
+│   └── prompts/
+│       └── orchestrator.md   # Orchestrator prompt template
+├── dist/                     # Compiled JavaScript
+└── package.json
 ```
 
-### MCP Configuration
+### Extension Configuration
 
-Add goose-flow to your Goose configuration:
+After running `goose configure`, goose-flow will be added to your goose configuration at `~/.config/goose/config.yaml`:
 
-```json
-{
-  "mcp": {
-    "servers": {
-      "goose-flow": {
-        "command": "npx",
-        "args": ["goose-flow", "mcp"]
-      }
-    }
-  }
-}
+```yaml
+extensions:
+  goose-flow:
+    args:
+    - goose-flow
+    - mcp
+    cmd: npx
+    description: Task orchestration extension for hierarchical agent delegation
+    enabled: true
+    name: goose-flow
+    timeout: 600
+    type: stdio
 ```
+
+This means the MCP server starts automatically when goose runs - no separate server startup required.
 
 ## Architecture
 
@@ -273,8 +288,11 @@ npm run test:coverage # Coverage report
 npm run build
 npm run link-dev
 
-# Start MCP server for testing
-npm run mcp
+# Configure goose extension (one-time setup)
+goose configure
+
+# Test the orchestrator
+goose-flow orchestrate "test task"
 
 # Check status
 goose-flow status
