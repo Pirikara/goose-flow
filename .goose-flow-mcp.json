@@ -1,0 +1,11 @@
+{
+  "servers": {
+    "goose-flow": {
+      "command": "npx",
+      "args": [
+        "goose-flow",
+        "mcp"
+      ]
+    }
+  }
+}

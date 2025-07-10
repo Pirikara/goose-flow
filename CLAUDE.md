@@ -168,3 +168,8 @@ npm run dev -- run --mode orchestrator --task "simple test"
 ```
 
 Always run `npm run ci` before committing to ensure code quality, type safety, and comprehensive test coverage.
+
+# コーディング原則
+- YAGNI: 将来使うかもしれない機能は実装しない
+- DRY: 重複コードは必ず関数化・モジュール化する
+- KISS: 複雑な解決策より単純な解決策を優先する
