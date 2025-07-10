@@ -7,6 +7,7 @@
 
 import { Command } from 'commander';
 import { startMCPServer } from '../mcp/server.js';
+import { ORCHESTRATOR_PROMPT } from '../prompts/orchestrator.js';
 
 const program = new Command();
 
@@ -32,7 +33,7 @@ program
     console.log('GooseFlow MCP Server Status:');
     console.log('- Version: 2.0.0');
     console.log('- Mode: Hierarchical orchestration');
-    console.log('- Available tools: task, progress');
+    console.log('- Available tools: task, parallel_tasks, progress');
     console.log('');
     console.log('To start MCP server: npx goose-flow mcp');
     console.log('To configure Goose: goose configure -> Add Extension -> Command-line Extension');
@@ -49,15 +50,11 @@ program
     // Check if MCP server is running (basic check)
     console.log('Note: Make sure MCP server is running (goose-flow mcp)');
     
-    // Get orchestrator prompt
-    const fs = await import('fs/promises');
-    const path = await import('path');
     const { execa } = await import('execa');
     
     try {
-      // Find orchestrator prompt file
-      const promptPath = path.join(process.cwd(), 'src/prompts/orchestrator.md');
-      const prompt = await fs.readFile(promptPath, 'utf-8');
+      // Use embedded orchestrator prompt
+      const prompt = ORCHESTRATOR_PROMPT;
       
       // Run goose with orchestrator prompt
       const gooseProcess = execa('goose', [
@@ -76,7 +73,6 @@ program
       console.log('Make sure:');
       console.log('1. MCP server is running: goose-flow mcp');
       console.log('2. Goose is installed and configured');
-      console.log('3. You are in the goose-flow project directory');
     }
   });
 
