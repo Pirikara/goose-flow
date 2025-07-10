@@ -5,171 +5,163 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build Commands
 
 - `npm run build`: Compile TypeScript to JavaScript in dist/
-- `npm run dev`: Run with ts-node for development 
-- `npm run test`: Run full Jest test suite
-- `npm run test:watch`: Run tests in watch mode
-- `npm run test:coverage`: Generate test coverage report
-- `npm run lint`: Run ESLint checks
+- `npm run mcp`: Run MCP server with ts-node for development
+- `npm run test`: Run Vitest test suite
+- `npm run test:watch`: Run Vitest in watch mode
+- `npm run test:coverage`: Generate test coverage report with @vitest/coverage-v8
 - `npm run typecheck`: Run TypeScript type checking
-- `npm run ci`: Run all checks (typecheck + lint + test)
+- `npm run ci`: Run all checks (typecheck + test)
 
 ## Project Architecture
 
-This is a TypeScript Node.js CLI tool called **goose-flow** that provides hierarchical multi-agent orchestration capabilities for AI development workflows. It transforms Goose into an orchestration platform where AI agents can create subtasks, pause parent tasks, and coordinate through a Roo-Code-style boomerang delegation pattern.
+This is a TypeScript Node.js CLI tool called **goose-flow** that acts as an **MCP (Model Context Protocol) server** to extend Goose with hierarchical task orchestration capabilities. The project provides a simple CLI interface and an MCP server that enables Goose to delegate tasks to spawned goose processes.
 
-### Core Architecture: Internal Orchestration
+### Core Architecture: MCP Extension
 
-**Key Concept**: goose-flow implements **internal orchestration** where goose acts as the LLM provider and the orchestration logic is built into goose-flow itself. This is NOT an MCP extension approach.
+**Key Concept**: goose-flow is an **MCP server extension** for Goose that provides hierarchical task delegation. When configured as an MCP server, it allows Goose to spawn subtasks using separate goose processes.
 
-**TaskOrchestrator (`src/lib/task-orchestrator.ts`)**
-- Core orchestration engine managing agent lifecycle and hierarchical task coordination
-- Implements LIFO TaskStack for parent-child task relationships with pause/resume
-- Handles goose process management and inter-process communication
-- Integrates with structured error handling and logging systems
+**TaskExecutor (`src/core/task-executor.ts`)**
+- Core execution engine that spawns goose processes for task execution
+- Manages active processes with unique task IDs
+- Handles process lifecycle and result collection
+- Integrates with execa for process management
 
-**OrchestrationHandler (`src/lib/orchestration-handler.ts`)**
-- Parses LLM output for orchestration tool calls (`new_task`, `attempt_completion`)
-- Handles tool execution and response generation
-- Provides event-driven coordination between orchestrator and agents
-
-**TaskStack (`src/lib/task-stack.ts`)**
-- LIFO stack implementation for hierarchical task management
-- Manages parent-child relationships and task state transitions
-- Supports pause/resume operations for boomerang delegation pattern
+**MCP Server (`src/mcp/server.ts`)**
+- Implements MCP protocol for Goose integration
+- Provides tools for task execution and progress tracking
+- Handles communication between Goose and task executor
 
 ### Essential Components
 
-**PromptManager (`src/lib/prompt-manager.ts`)**
-- Centralized prompt generation and management
-- Mode-specific prompts for different agent types
-- Unified prompt formatting and instruction building
+**CLI Interface (`src/cli/index.ts`)**
+- Simple CLI with 2 commands: `mcp`, `status`
+- Commander.js-based command parsing
+- Status reporting functionality
 
-**Error Handling System (`src/lib/errors.ts`)**
-- Structured error classes: TaskError, ProcessError, OrchestrationError, SystemError
-- Error context tracking with task IDs, operations, and severity levels
-- Integrated with logging system for comprehensive debugging
+**Type System (`src/types/index.ts`)**
+- TaskRequest, TaskResult, and GooseProcess interfaces
+- Comprehensive type definitions for all components
+- Ensures type safety across the application
 
-**Logging System (`src/lib/console-logger.ts`)**
-- Context-aware structured logging with task/operation metadata
-- File-based logging with automatic rotation and cleanup
-- Performance monitoring and metrics collection
-- Integration with error system for comprehensive debugging
+### MCP Integration Flow
 
-**Safety & Progress (`src/lib/safety-manager.ts`, `src/lib/progress-tracker.ts`)**
-- Safety constraints: task depth limits, concurrent task limits, timeouts
-- Real-time progress tracking with JSON-based state persistence
-- Task hierarchy monitoring and status reporting
+1. **Server Start**: MCP server starts and registers available tools
+2. **Task Request**: Goose requests task execution through MCP protocol
+3. **Process Spawn**: TaskExecutor spawns new goose process for the task
+4. **Result Collection**: Process output is collected and parsed
+5. **Response**: Results are returned to Goose through MCP protocol
 
-### Agent Configuration
+### Available CLI Commands
 
-**ConfigParser (`src/lib/config-parser.ts`)**
-- Manages `goose-flow.config.json` with 21 pre-defined agent modes
-- Agent types: orchestrator, coder, architect, tester, researcher, security-orchestrator, etc.
-- Each agent has specific prompts and capabilities optimized for its role
+**`goose-flow mcp`**
+- Starts the MCP server for Goose integration
+- Primary command for enabling hierarchical orchestration
 
-### Orchestration Flow
+**`goose-flow status`**
+- Shows current MCP server status and configuration
+- Displays version and available tools
 
-1. **Root Task Creation**: TaskOrchestrator creates root task and starts goose process
-2. **Tool Call Detection**: OrchestrationHandler monitors goose output for `new_task`/`attempt_completion`
-3. **Subtask Delegation**: Parent task pauses, child task created with new goose process
-4. **Boomerang Completion**: Child completes, parent automatically resumes with results
-5. **Hierarchical Coordination**: Multiple levels of delegation supported with safety limits
-
-### Internal Orchestration Tools
-
-Agents use these tools for task coordination (parsed from LLM output):
-
-**`new_task {mode: "coder", instruction: "implement authentication"}`**
-- Creates subtask with specified mode and instruction
-- Parent task automatically pauses until subtask completion
-
-**`attempt_completion {result: "Task completed successfully"}`**
-- Marks current task as completed
-- Resumes parent task with completion result
 
 ## Development Workflow
 
-### Project Structure After Init
+### Project Structure
 ```
-project-root/
-├── goose-flow.config.json    # Agent configuration with 21 pre-defined modes
-├── .goose-flow/              # Workspace directory
-│   ├── workspace/
-│   │   ├── tasks/           # Active task sessions (one per task ID)
-│   │   ├── results/         # Agent outputs and artifacts
-│   │   └── progress.json    # Real-time progress tracking
-│   ├── logs/                # Structured logs with automatic rotation
-│   └── .gitignore          # Workspace gitignore
+goose-flow/
+├── src/
+│   ├── cli/index.ts          # CLI entry point
+│   ├── core/task-executor.ts # Task execution engine
+│   ├── mcp/                  # MCP server implementation
+│   │   ├── index.ts          # MCP server entry point
+│   │   └── server.ts         # MCP server logic
+│   ├── prompts/              # Agent prompts
+│   │   └── orchestrator.md   # Orchestrator prompt template
+│   └── types/index.ts        # Type definitions
+├── tests/                    # Test suites
+│   ├── integration/          # Integration tests
+│   └── unit/                 # Unit tests
+├── dist/                     # Compiled JavaScript
+└── vitest.config.ts          # Test configuration
 ```
 
 ### Testing Strategy
-- Jest with ts-jest preset, 30-second timeout for long operations
-- Tests in `test/__tests__/` directory with comprehensive coverage
-- Mocked dependencies: chalk, execa, fs operations
-- Test coverage excludes CLI entry point, includes all core logic
+- Vitest with Node.js environment, 30-second timeout for long operations
+- Tests in `tests/` directory with unit and integration separation
+- Mocked dependencies: execa for process spawning
+- Test coverage configured with @vitest/coverage-v8
 
 ### Code Conventions
-- TypeScript with strict mode enabled, 100% type safety
+- TypeScript with strict mode enabled
+- ESM modules (`"type": "module"` in package.json)
 - Interface-driven design with comprehensive error handling
-- Structured logging with context information
-- Event-driven architecture with EventEmitter patterns
-- Safety-first approach with limits and constraints
+- Simple and focused architecture following KISS principle
 
 ## Important Notes
 
-- **Node.js 20+**: Required for modern LLM integration features
+- **Node.js 20+**: Required for modern ESM and LLM integration features
 - **Goose Dependency**: Requires Goose CLI installed and configured with LLM provider
-- **Internal Orchestration**: Uses goose as LLM provider, orchestration logic is internal to goose-flow
-- **Hierarchical Tasks**: Supports deep task hierarchies with automatic pause/resume
-- **Error Recovery**: Comprehensive error handling with context and recovery hints
-- **Performance Monitoring**: Built-in performance tracking and metrics collection
+- **MCP Extension**: Functions as an MCP server extension, not standalone orchestration
+- **Process Management**: Spawns goose subprocesses for task execution
+- **Simple Architecture**: Focused on MCP integration rather than complex orchestration
 
 ## Common Development Tasks
 
-### Run Orchestration
+### Start MCP Server
 ```bash
-npm run dev -- run --mode orchestrator --task "coordinate development tasks"
+npm run mcp
+# or after building
+npm run build && npm start
 ```
 
-### Test Single Component
+### Test Development
 ```bash
-npm test -- task-orchestrator.test.ts
-npm run test:watch -- --testNamePattern="TaskOrchestrator"
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run specific test file
+npm test -- task-executor.test.ts
+
+# Generate coverage report
+npm run test:coverage
 ```
 
-### Debug with Logging
+### Development and Debugging
 ```bash
-# Enable debug logging
-GOOSE_FLOW_LOG_LEVEL=0 npm run dev -- run --mode coder --task "test task"
+# Build and link for development
+npm run build
+npm run link-dev
+
+# Check status
+goose-flow status
+
+# Start MCP server
+goose-flow mcp
 ```
 
-### Check Orchestration Status
+### CI/CD
 ```bash
-npm run dev -- status
-```
-
-### List Available Tools
-```bash
-# Show all available tools
-npm run dev -- tools
-
-# Show tools for specific mode
-npm run dev -- tools --mode orchestrator
-npm run dev -- tools --mode coder
-```
-
-### Architecture Verification
-```bash
-# Verify type safety and build
+# Run all checks (used in CI)
 npm run ci
 
-# Test orchestration functionality
-npm run dev -- run --mode orchestrator --task "simple test"
+# Type checking only
+npm run typecheck
+
+# Build for production
+npm run build
 ```
 
-Always run `npm run ci` before committing to ensure code quality, type safety, and comprehensive test coverage.
+Always run `npm run ci` before committing to ensure code quality, type safety, and test coverage.
 
-# コーディング原則
-- YAGNI: 将来使うかもしれない機能は実装しない
-- DRY: 重複コードは必ず関数化・モジュール化する
-- KISS: 複雑な解決策より単純な解決策を優先する
+## Integration with Goose
+
+Add the MCP server to your Goose configuration:
+
+1. Run `goose configure`
+2. Select "Add Extension" → "Command-line Extension"
+3. Name: goose-flow
+4. Command: `npx goose-flow mcp`
+5. Working Directory: your project directory
+
+The MCP server will provide task delegation capabilities to Goose through the `task` and `progress` tools.

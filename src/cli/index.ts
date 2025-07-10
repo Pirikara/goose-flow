@@ -35,40 +35,8 @@ program
     console.log('- Available tools: task, progress');
     console.log('');
     console.log('To start MCP server: npx goose-flow mcp');
-    console.log('To configure Goose: npx goose-flow init');
+    console.log('To configure Goose: goose configure -> Add Extension -> Command-line Extension');
   });
 
-// 初期化コマンド
-program
-  .command('init')
-  .description('Initialize goose-flow in current directory')
-  .action(async () => {
-    console.log('Initializing goose-flow v2.0...');
-    
-    // 基本的なMCP設定ファイルを作成
-    const mcpConfig = {
-      "servers": {
-        "goose-flow": {
-          "command": "npx",
-          "args": ["goose-flow", "mcp"]
-        }
-      }
-    };
-    
-    const fs = await import('fs/promises');
-    await fs.writeFile('.goose-flow-mcp.json', JSON.stringify(mcpConfig, null, 2));
-    
-    console.log('✅ GooseFlow initialized!');
-    console.log('');
-    console.log('Next steps:');
-    console.log('1. Add the following to your Goose configuration:');
-    console.log('   goose configure -> Add Extension -> Command-line Extension');
-    console.log('   Name: goose-flow');
-    console.log('   Command: npx goose-flow mcp');
-    console.log('   Working Directory: ' + process.cwd());
-    console.log('');
-    console.log('2. Start orchestration:');
-    console.log('   goose run --system "$(cat src-new/prompts/orchestrator.md)" --text "your task" --interactive');
-  });
 
 program.parse();
