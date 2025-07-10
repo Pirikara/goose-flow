@@ -28,13 +28,57 @@ Delegate a subtask to a specialized agent.
 }
 ```
 
+### `parallel_tasks` Tool
+Execute multiple independent tasks in parallel to improve efficiency.
+
+**Parameters:**
+- `description`: Overall description of the parallel operation
+- `tasks`: Array of independent tasks to execute in parallel
+  - `id`: Unique identifier for the task
+  - `description`: Brief task description
+  - `prompt`: Detailed instructions for the task
+  - `mode`: Agent mode (default: "coder")
+  - `maxTurns`: Maximum number of turns (default: 10)
+  - `priority`: "high", "medium", or "low" (default: "medium")
+- `maxConcurrent`: Maximum number of tasks to run concurrently (default: 3)
+- `waitForAll`: Wait for all tasks vs fail-fast mode (default: true)
+
+**Usage:**
+```json
+{
+  "name": "parallel_tasks",
+  "arguments": {
+    "description": "Implement independent microservices",
+    "tasks": [
+      {
+        "id": "user-service",
+        "description": "Implement user management service",
+        "prompt": "Create a user service with authentication, registration, and profile management. Include proper error handling and validation.",
+        "mode": "coder",
+        "maxTurns": 20
+      },
+      {
+        "id": "product-service",
+        "description": "Implement product catalog service",
+        "prompt": "Create a product service with CRUD operations, search functionality, and category management.",
+        "mode": "coder",
+        "maxTurns": 15
+      }
+    ],
+    "maxConcurrent": 2
+  }
+}
+```
+
 ### `progress` Tool
 Track and display progress of your orchestration.
 
 **Parameters:**
-- `action`: "create", "update", "complete", or "list"
+- `action`: "create", "update", "complete", "list", "parallel_start", or "parallel_update"
 - `stepId`: Step identifier (for update/complete actions)
 - `description`: Step description (for create action)
+- `parallelTaskId`: Parallel task identifier (for parallel progress tracking)
+- `parallelStatus`: Status of parallel tasks execution
 
 **Usage:**
 ```json
@@ -43,6 +87,23 @@ Track and display progress of your orchestration.
   "arguments": {
     "action": "create",
     "description": "Design system architecture"
+  }
+}
+```
+
+**Parallel Progress Tracking:**
+```json
+{
+  "name": "progress",
+  "arguments": {
+    "action": "parallel_start",
+    "description": "Starting parallel microservice implementation",
+    "parallelStatus": {
+      "total": 3,
+      "completed": 0,
+      "failed": 0,
+      "active": ["user-service", "product-service", "order-service"]
+    }
   }
 }
 ```
@@ -68,14 +129,41 @@ Track and display progress of your orchestration.
 - **Provide clear instructions**: Each subtask should have specific, actionable instructions
 - **Set appropriate limits**: Use `maxTurns` to prevent runaway tasks
 
-### 4. Progress Tracking
+### 4. Parallel vs Sequential Decision Making
+
+**Use `parallel_tasks` when tasks are:**
+- ✅ **Independent**: No dependencies on each other's results
+- ✅ **Different areas**: Operating on different files/modules/services
+- ✅ **Substantial**: Each task takes significant time (>5 minutes)
+- ✅ **Resource reasonable**: System can handle concurrent processes
+
+**Use sequential `task` when tasks are:**
+- ❌ **Dependent**: Need results from previous tasks
+- ❌ **Same area**: Risk of conflicts in same codebase areas
+- ❌ **Quick**: Tasks take <2 minutes (parallel overhead not worth it)
+- ❌ **Resource intensive**: High CPU/memory requirements
+
+**Examples of Good Parallel Candidates:**
+- Independent microservices implementation
+- Multi-platform testing (web, mobile, API)
+- Documentation generation for different components
+- Code analysis across multiple modules
+
+**Examples of Sequential Candidates:**
+- Design → Implementation → Testing workflows
+- Database schema → Data migration → API updates
+- Requirements gathering → Architecture → Implementation
+
+### 5. Progress Tracking
 - **Track each major step**: Use the progress tool to show your plan
 - **Update regularly**: Keep the user informed of progress
 - **Handle failures gracefully**: If a subtask fails, adapt your approach
 
-## Example Orchestration
+## Example Orchestrations
 
-Here's how to orchestrate a complex task:
+### Sequential Orchestration Example
+
+Here's how to orchestrate a complex task with dependencies:
 
 ```
 User Request: "Create a REST API for a task management system"
@@ -126,6 +214,95 @@ User Request: "Create a REST API for a task management system"
     "prompt": "Create comprehensive tests for the REST API endpoints. Include unit tests, integration tests, and API documentation examples.",
     "mode": "tester",
     "maxTurns": 15
+  }
+}
+```
+
+### Parallel Orchestration Example
+
+Here's how to orchestrate independent tasks in parallel:
+
+```
+User Request: "Create a complete e-commerce microservices architecture"
+
+1. Start with sequential design phase:
+```json
+{
+  "name": "task",
+  "arguments": {
+    "description": "Design microservices architecture",
+    "prompt": "Design a microservices architecture for an e-commerce platform. Define service boundaries, communication patterns, and data management strategies for user, product, order, and payment services.",
+    "mode": "architect",
+    "maxTurns": 20
+  }
+}
+```
+
+2. Implement services in parallel (after design is complete):
+```json
+{
+  "name": "parallel_tasks",
+  "arguments": {
+    "description": "Implement independent microservices",
+    "tasks": [
+      {
+        "id": "user-service",
+        "description": "Implement user management service",
+        "prompt": "Based on the architecture design, implement the user management service with authentication, registration, and profile management. Include proper error handling and API documentation.",
+        "mode": "coder",
+        "maxTurns": 25
+      },
+      {
+        "id": "product-service",
+        "description": "Implement product catalog service",
+        "prompt": "Based on the architecture design, implement the product catalog service with CRUD operations, search functionality, and category management.",
+        "mode": "coder",
+        "maxTurns": 20
+      },
+      {
+        "id": "order-service",
+        "description": "Implement order processing service",
+        "prompt": "Based on the architecture design, implement the order processing service with order creation, status tracking, and inventory management.",
+        "mode": "coder",
+        "maxTurns": 25
+      }
+    ],
+    "maxConcurrent": 3,
+    "waitForAll": true
+  }
+}
+```
+
+3. Test services in parallel (after all implementations are complete):
+```json
+{
+  "name": "parallel_tasks",
+  "arguments": {
+    "description": "Test all microservices",
+    "tasks": [
+      {
+        "id": "user-service-tests",
+        "description": "Test user service functionality",
+        "prompt": "Create comprehensive tests for the user service including unit tests, integration tests, and API endpoint validation.",
+        "mode": "tester",
+        "maxTurns": 15
+      },
+      {
+        "id": "product-service-tests",
+        "description": "Test product service functionality", 
+        "prompt": "Create comprehensive tests for the product service including unit tests, integration tests, and search functionality validation.",
+        "mode": "tester",
+        "maxTurns": 15
+      },
+      {
+        "id": "order-service-tests",
+        "description": "Test order service functionality",
+        "prompt": "Create comprehensive tests for the order service including unit tests, integration tests, and order flow validation.",
+        "mode": "tester", 
+        "maxTurns": 15
+      }
+    ],
+    "maxConcurrent": 3
   }
 }
 ```

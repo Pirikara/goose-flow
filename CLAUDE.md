@@ -25,6 +25,7 @@ This is a TypeScript Node.js CLI tool called **goose-flow** that acts as an **MC
 - Manages active processes with unique task IDs
 - Handles process lifecycle and result collection
 - Integrates with execa for process management
+- Supports both single task execution and parallel task execution
 
 **MCP Server (`src/mcp/server.ts`)**
 - Implements MCP protocol for Goose integration
@@ -36,10 +37,11 @@ This is a TypeScript Node.js CLI tool called **goose-flow** that acts as an **MC
 **CLI Interface (`src/cli/index.ts`)**
 - Simple CLI with 3 commands: `mcp`, `status`, `orchestrate`
 - Commander.js-based command parsing
-- Status reporting and orchestrator convenience functionality
+- Orchestrator convenience functionality and status reporting
 
 **Type System (`src/types/index.ts`)**
 - TaskRequest, TaskResult, and GooseProcess interfaces
+- Parallel task execution types (ParallelTask, ParallelTasksRequest, ParallelTasksResult)
 - Comprehensive type definitions for all components
 - Ensures type safety across the application
 
@@ -65,6 +67,20 @@ This is a TypeScript Node.js CLI tool called **goose-flow** that acts as an **MC
 - Convenience command to run goose with orchestrator prompt
 - Automatically handles prompt loading and goose execution
 
+### Available MCP Tools
+
+**`task`**
+- Execute a subtask using a specialized agent
+- Parameters: description, prompt, mode, maxTurns
+
+**`parallel_tasks`**
+- Execute multiple independent tasks in parallel
+- Parameters: description, tasks array, maxConcurrent, waitForAll
+- Supports priority-based task execution
+
+**`progress`**
+- Track and display progress of current orchestration
+- Parameters: action, stepId, description, parallelTaskId, parallelStatus
 
 ## Development Workflow
 
@@ -137,14 +153,14 @@ npm run test:coverage
 npm run build
 npm run link-dev
 
-# Configure goose extension (one-time setup)
-goose configure
-
 # Test orchestrator
 goose-flow orchestrate "test task"
 
 # Check status
 goose-flow status
+
+# Start MCP server
+goose-flow mcp
 ```
 
 ### CI/CD
@@ -163,7 +179,7 @@ Always run `npm run ci` before committing to ensure code quality, type safety, a
 
 ## Integration with Goose
 
-Add the MCP server to your Goose configuration:
+After initialization, add the MCP server to your Goose configuration:
 
 1. Run `goose configure`
 2. Select "Add Extension" → "Command-line Extension"
@@ -171,12 +187,4 @@ Add the MCP server to your Goose configuration:
 4. Command: `npx goose-flow mcp`
 5. Working Directory: your project directory
 
-### Usage Pattern
-
-Once configured as an extension, goose-flow runs automatically when goose starts:
-- `goose-flow orchestrate "your task"`
-- `goose run --system "$(cat src/prompts/orchestrator.md)" --text "your task"`
-
-No separate MCP server startup required - the extension handles this automatically.
-
-The MCP server provides task delegation capabilities to Goose through the `task` and `progress` tools.
+The MCP server will provide task delegation capabilities to Goose through the `task`, `parallel_tasks`, and `progress` tools.

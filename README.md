@@ -19,6 +19,7 @@ goose-flow orchestrate "Create a simple calculator"
 
 - **🔧 MCP Server Extension** - Integrates seamlessly with Goose via MCP protocol
 - **📋 Task Delegation** - Spawn subtasks using separate goose processes
+- **🚀 Parallel Execution** - Execute multiple independent tasks concurrently
 - **🎯 Process Management** - Automatic process lifecycle management with unique task IDs
 - **📊 Progress Tracking** - Real-time task status and progress monitoring
 - **🛡️ Error Handling** - Comprehensive error handling and process cleanup
@@ -137,6 +138,42 @@ Delegates a subtask to a separate goose process:
 - `mode`: Agent mode (default: "coder")
 - `maxTurns`: Maximum turns for the subtask (default: 10)
 
+### `parallel_tasks` Tool
+Execute multiple independent tasks in parallel:
+
+```json
+{
+  "name": "parallel_tasks",
+  "arguments": {
+    "description": "Implement authentication system components",
+    "tasks": [
+      {
+        "id": "auth-api",
+        "description": "Create authentication API endpoints",
+        "prompt": "Implement login, logout, and token refresh endpoints",
+        "mode": "coder",
+        "priority": "high"
+      },
+      {
+        "id": "auth-ui",
+        "description": "Create authentication UI components",
+        "prompt": "Build login and registration forms",
+        "mode": "coder",
+        "priority": "medium"
+      }
+    ],
+    "maxConcurrent": 2,
+    "waitForAll": true
+  }
+}
+```
+
+**Parameters:**
+- `description`: Overall description of the parallel operation
+- `tasks`: Array of tasks to execute in parallel
+- `maxConcurrent`: Maximum number of concurrent tasks (optional)
+- `waitForAll`: Wait for all tasks vs fail-fast mode (optional, default: true)
+
 ### `progress` Tool
 Tracks and displays orchestration progress:
 
@@ -187,6 +224,22 @@ The orchestrator will automatically:
 3. Implementation: task(mode="coder", prompt="Implement API endpoints and auth")
 4. Testing: task(mode="tester", prompt="Create comprehensive API tests")
 5. Review: task(mode="reviewer", prompt="Review code quality and security")
+
+### Parallel Task Execution
+
+```bash
+goose-flow orchestrate "Create a multi-component web application"
+```
+
+The orchestrator can use parallel execution for independent tasks:
+1. Planning: task(mode="architect", prompt="Design overall system architecture")
+2. Parallel implementation: parallel_tasks(tasks=[
+   - Frontend components (mode="coder")
+   - Backend API (mode="coder") 
+   - Database schema (mode="architect")
+   ], maxConcurrent=3)
+3. Integration: task(mode="coder", prompt="Integrate all components")
+4. Testing: task(mode="tester", prompt="End-to-end testing")
 
 ## Configuration
 
